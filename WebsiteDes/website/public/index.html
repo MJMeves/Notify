@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Notify</title>
+</head>
+<body>
+  <h1>Notify Login</h1>
+  <!-- Login form -->
+  <div id="login">
+    <div>
+      <label for="username">Username:</label>
+      <input id="username" type="text" autocomplete="username" />
+    </div>
+    <div>
+      <label for="password">Password:</label>
+      <input id="password" type="password" autocomplete="current-password" />
+    </div>
+    <div>
+      <fieldset style="border:0;padding:0;margin:8px 0">
+        <legend style="font-weight:600">Role</legend>
+        <label>
+          <input type="radio" name="role" id="roleArtist" value="artist" checked /> Artist
+        </label>
+        <label style="margin-left:12px">
+          <input type="radio" name="role" id="roleListener" value="listener" /> Listener
+        </label>
+      </fieldset>
+    </div>
+    <div>
+      <button id="loginBtn">Login</button>
+    </div>
+    <div id="loginStatus" role="status" aria-live="polite" style="margin-top:8px;color:#b00"></div>
+  </div>
+  
+  <div id="output"></div>
+
+  <script>
+    document.getElementById("loginBtn").onclick = async () => {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const statusEl = document.getElementById("loginStatus");
+      statusEl.style.color = "#000";
+      if (!username || !password) {
+        statusEl.textContent = "Please enter both username and password.";
+        statusEl.style.color = "#b00";
+        return;
+      }
+      statusEl.textContent = "Checking credentials...";
+      try {
+        const role = document.querySelector('input[name="role"]:checked')?.value;
+        const res = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password, role })
+        });
+
+        if (!res.ok) {
+          // Try to read JSON or text error message
+          let msg = res.statusText;
+          try { const j = await res.json(); if (j && j.message) msg = j.message; } catch(e) { try { msg = await res.text(); } catch(_) {} }
+          statusEl.textContent = `Login failed: ${msg}`;
+          statusEl.style.color = "#b00";
+          return;
+        }
+
+        const data = await res.json();
+        if (data && data.success) {
+          statusEl.textContent = "Login successful.";
+          statusEl.style.color = "#080";
+          // Redirect to the other page on success
+          window.location.href = 'other.html';
+        } else {
+          statusEl.textContent = data && data.message ? data.message : "Invalid credentials.";
+          statusEl.style.color = "#b00";
+        }
+      } catch (err) {
+        statusEl.textContent = `Error: ${err.message}`;
+        statusEl.style.color = "#b00";
+      }
+    };
+  </script>
+</body>
+</html>
