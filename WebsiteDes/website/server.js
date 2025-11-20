@@ -1,15 +1,9 @@
 const express = require("express");
 const mysql = require("mysql2");
 const path = require("path");
-// const cors = require("cors");
 
 const app = express();
 app.use(express.json());
-// app.use(cors());
-// app.use((req, res, next) => {
-//   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-//   next();
-// });
 app.use(express.static("public"));
 
 // ------ MySQL connection ------
