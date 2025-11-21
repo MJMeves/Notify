@@ -68,7 +68,12 @@
           statusEl.textContent = "Login successful.";
           statusEl.style.color = "#080";
           // Redirect to the other page on success
-          window.location.href = 'other.html';
+          if (role === "artist") {
+            // make artist page later
+            window.location.href = 'artist.html';
+          } else if (role === "listener") {
+            window.location.href = 'listener.html';
+          }
         } else {
           statusEl.textContent = data && data.message ? data.message : "Invalid credentials.";
           statusEl.style.color = "#b00";
