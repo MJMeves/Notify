@@ -9,8 +9,8 @@ app.use(express.static("public"));
 // ------ MySQL connection ------
 const db = mysql.createConnection({
   host: "localhost",
-  user: "root",                        // need to make a sql user instead of root for ease of use
-  password: "CClarkNeedsNoSQL18!",     // update if for your own root
+  user: "root",
+  password: "***YOUR ROOT PASSWORD GOES HERE!",
   database: "notify_db"
 });
 
