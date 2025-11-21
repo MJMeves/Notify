@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Queries Page</title>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.html">Login</a></li>
+        </ul>
+    </nav>
+    <hr>
+        <h1>5 Queries Shown & Explained</h1>
+
+        <section>
+            <h2>Query 1: Artist and Listener Login Details</h2>
+            <p>This query retrieves the login username or email of both artists and listeners from their respective tables and matches them to their password in the login table.</p>
+            <p>Types: <em>JOIN</em></p>
+            <pre><code>
+                SELECT DISTINCT U.UserName, L.Password
+                FROM listener U, login L
+                WHERE L.UserID = U.UserID
+                UNION
+                SELECT DISTINCT A.Email, L.Password
+                FROM artist A, login L
+                WHERE L.ArtistID = A.ArtistID;
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Query 2: Artists Stats In Ranked Order</h2>
+            <p>This query displays the artist's ID, their total minutes listened, each of their songs' IDs, and the total number of listenes for each song. 
+                It orders the results by total minutes listened in descending order, then by number of plays. This ordering puts all the artists in order of most
+                listened to least and then each of the artist's songs from most played to least played.
+            </p>
+            <p>Types: <em>JOIN, VIEW</em></p>
+            <pre><code>
+                DROP VIEW IF EXISTS ArtistStats;
+                CREATE VIEW ArtistStats AS
+                SELECT A.ArtistID, A.MinutesListenedTo, S.SongID, S.ListenCount
+                FROM artist A
+                JOIN song S ON A.ArtistID = S.ArtistID
+                ORDER BY A.MinutesListenedTo DESC, S.ListenCount DESC, A.ArtistID;
+                SELECT * FROM ArtistStats;
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Query 3: Top 5 Favorited Artists </h2>
+            <p>This query retrieves the top 5 artists who have been favorited the most by listeners. It counts the number of times each artist appears in the favorites table,
+                groups the results by artist ID, orders them in descending order based on the count, and limits the output to the top 5 artists.</p>
+            <p>Types: <em>JOIN, VIEW, SUBQUERY, AGGREGATION</em></p>
+            <pre><code>
+                DROP VIEW IF EXISTS TopFavArtists;
+                CREATE VIEW TopFavArtists AS
+                SELECT A.ArtistID, A.FirstName, A.LastName, A.StageName, L.ListenerCount
+                FROM artist A
+                JOIN (
+                    SELECT FavoriteArtistID, COUNT(*) AS ListenerCount
+                    FROM listener
+                    GROUP BY FavoriteArtistID
+                    ORDER BY ListenerCount DESC
+                    LIMIT 5
+                ) L ON A.ArtistID = L.FavoriteArtistID
+                ORDER BY L.ListenerCount DESC;
+                SELECT * FROM TopFavArtists;
+            </code></pre>
+        </section>
+
+        <section>
+        <h2>Query 4: Top 5 Favorited Songs</h2>
+            <p>This query retrieves the top 5 songs that have been favorited the most by listeners. It counts the number of times each song appears in the favorites table,
+                groups the results by song ID, orders them in descending order based on the count, and limits the output to the top 5 songs.</p>
+            <p>Types: <em>JOIN, VIEW, SUBQUERY, AGGREGATION</em></p>
+            <pre><code>
+                DROP VIEW IF EXISTS TopFavSongs;
+                CREATE VIEW TopFavSongs AS
+                SELECT S.SongID, S.SongName, L.ListenerCount
+                FROM song S
+                JOIN (
+                    SELECT FavoriteSongID, COUNT(*) AS ListenerCount
+                    FROM listener
+                    GROUP BY FavoriteSongID
+                    ORDER BY ListenerCount DESC
+                    LIMIT 5
+                ) L ON S.SongID = L.FavoriteSongID
+                ORDER BY L.ListenerCount DESC;
+                SELECT * FROM TopFavSongs;
+            </code></pre>
+        </section>
+
+        <section>
+            <h2>Query 5: Top 5 Favorited Genres</h2>
+            <p>This query counts the number of times each genre appears as the favorited genre for each listener. It then ranks them based
+                on the count in descending order and limits the output to the top 5 genres.</p>
+            <p>Types: <em>VIEW, AGGREGATION</em></p>
+            <pre><code>
+                DROP VIEW IF EXISTS TopFavGenres;
+                CREATE VIEW TopFavGenres AS
+                SELECT FavoriteGenre, COUNT(*) AS NumFavs
+                FROM listener
+                WHERE FavoriteGenre IS NOT NULL
+                GROUP BY FavoriteGenre
+                ORDER BY NumFavs DESC
+                LIMIT 5;
+                SELECT * FROM TopFavGenres;
+            </code></pre>
+        </section>
+</body>
+</html>
+
