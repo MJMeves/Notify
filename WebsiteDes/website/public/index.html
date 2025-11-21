@@ -5,77 +5,81 @@
 </head>
 <body>
   <h1>Notify Login</h1>
+
   <!-- Login form -->
   <div id="login">
     <div>
-      <label for="username">Username:</label>
-      <input id="username" type="text" autocomplete="username" />
+      <label for="loginId">Login ID:</label>
+      <input id="loginId" type="number" min="1" step="1" />
     </div>
     <div>
       <label for="password">Password:</label>
       <input id="password" type="password" autocomplete="current-password" />
     </div>
     <div>
-      <fieldset style="border:0;padding:0;margin:8px 0">
-        <legend style="font-weight:600">Role</legend>
-        <label>
-          <input type="radio" name="role" id="roleArtist" value="artist" checked /> Artist
-        </label>
-        <label style="margin-left:12px">
-          <input type="radio" name="role" id="roleListener" value="listener" /> Listener
-        </label>
-      </fieldset>
-    </div>
-    <div>
       <button id="loginBtn">Login</button>
     </div>
-    <div id="loginStatus" role="status" aria-live="polite" style="margin-top:8px;color:#b00"></div>
+    <div
+      id="loginStatus"
+      role="status"
+      aria-live="polite"
+      style="margin-top:8px;color:#b00"
+    ></div>
   </div>
-  
-  <div id="output"></div>
 
   <script>
     document.getElementById("loginBtn").onclick = async () => {
-      const username = document.getElementById("username").value.trim();
+      const loginId = document.getElementById("loginId").value.trim();
       const password = document.getElementById("password").value.trim();
       const statusEl = document.getElementById("loginStatus");
+
       statusEl.style.color = "#000";
-      if (!username || !password) {
-        statusEl.textContent = "Please enter both username and password.";
+
+      if (!loginId || !password) {
+        statusEl.textContent = "Please enter both Login ID and password.";
         statusEl.style.color = "#b00";
         return;
       }
+
       statusEl.textContent = "Checking credentials...";
+
       try {
-        const role = document.querySelector('input[name="role"]:checked')?.value;
-        const res = await fetch("/api/users", {
+        const res = await fetch("/api/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password, role })
+          body: JSON.stringify({ loginId, password })
         });
 
-        if (!res.ok) {
-          // Try to read JSON or text error message
-          let msg = res.statusText;
-          try { const j = await res.json(); if (j && j.message) msg = j.message; } catch(e) { try { msg = await res.text(); } catch(_) {} }
-          statusEl.textContent = `Login failed: ${msg}`;
+        let data;
+        try {
+          data = await res.json();
+        } catch (_) {
+          data = null;
+        }
+
+        if (!res.ok || !data || !data.success) {
+          const msg =
+            (data && data.message) ||
+            res.statusText ||
+            "Login failed for unknown reason.";
+          statusEl.textContent = "Login failed: " + msg;
           statusEl.style.color = "#b00";
           return;
         }
 
-        const data = await res.json();
-        if (data && data.success) {
-          statusEl.textContent = "Login successful.";
-          statusEl.style.color = "#080";
-          // Redirect to the other page on success
-          if (role === "artist") {
-            // make artist page later
-            window.location.href = 'artist.html';
-          } else if (role === "listener") {
-            window.location.href = 'listener.html';
-          }
+        // Success
+        statusEl.textContent = "Login successful.";
+        statusEl.style.color = "#080";
+
+        // Redirect based on role returned by server
+        if (data.role === "artist") {
+          window.location.href = "artist.html";
+        } else if (data.role === "listener") {
+          window.location.href = "listener.html";
         } else {
-          statusEl.textContent = data && data.message ? data.message : "Invalid credentials.";
+          // Fallback if server didn't send a role for some reason
+          statusEl.textContent =
+            "Login succeeded, but role is unknown. Please contact support.";
           statusEl.style.color = "#b00";
         }
       } catch (err) {

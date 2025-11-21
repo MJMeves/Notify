@@ -9,9 +9,9 @@ app.use(express.static("public"));
 // ------ MySQL connection ------
 const db = mysql.createConnection({
   host: "localhost",
-  user: "root",
-  password: "CClarkNeedsNoSQL18!",
-  database: "test"
+  user: "root",                        // need to make a sql user instead of root for ease of use
+  password: "CClarkNeedsNoSQL18!",     // update if for your own root
+  database: "notify_db"
 });
 
 db.connect((err) => {
@@ -19,48 +19,74 @@ db.connect((err) => {
     console.error("MySQL connection error:", err);
     return;
   }
-  console.log("Connected to MySQL!");
+  console.log("Connected to MySQL (notify_db)!");
 });
 
-// ------ Login route ------
-app.post('/api/users', (req, res) => {
-  console.log('POST /api/users', req.body);
-  const { username, password, role } = req.body || {};
-  if (!username || !password || !role) {
-    return res.status(400).json({ success: false, message: 'Missing username, password, or role' });
-  }
-  if (!['artist', 'listener'].includes(role)) {
-    return res.status(400).json({ success: false, message: 'Invalid role' });
+// ------ Login route (LoginID + Password) ------
+app.post("/api/login", (req, res) => {
+  console.log("POST /api/login", req.body);
+
+  const { loginId, password } = req.body || {};
+
+  if (!loginId || !password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing loginId or password" });
   }
 
-  // Select the password and the role id columns (note ListenerID column name)
-  db.query('SELECT password, ArtistId, ListenerID FROM users WHERE username = ?', [username], (err, results) => {
-    if (err) return res.status(500).json({ success: false, message: 'Database error' });
-    if (!results || results.length === 0) return res.status(401).json({ success: false, message: 'User not found' });
+  // Look up row in login table by LoginID
+  const sql =
+    "SELECT LoginID AS loginId, UserID AS userId, ArtistID AS artistId, Password AS storedPassword FROM login WHERE LoginID = ?";
+  db.query(sql, [loginId], (err, results) => {
+    if (err) {
+      console.error("DB error during login:", err);
+      return res
+        .status(500)
+        .json({ success: false, message: "Database error" });
+    }
+
+    if (!results || results.length === 0) {
+      return res
+        .status(401)
+        .json({ success: false, message: "LoginID not found" });
+    }
 
     const row = results[0];
-    const stored = row.password;
-    // Plaintext comparison — replace with bcrypt.compare if passwords are hashed
-    if (stored !== password) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+    // Plaintext comparison (your sample data is plaintext).
+    // In a real app you'd hash and compare.
+    if (row.storedPassword !== password) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid password" });
     }
 
-    // Check role-specific id presence. client uses lowercase 'artist'/'listener'
-    if (role === 'artist') {
-      if (row.ArtistId == null) {
-        return res.status(401).json({ success: false, message: 'Account is not an artist' });
-      }
-    } else if (role === 'listener') {
-      if (row.ListenerID == null) {
-        return res.status(401).json({ success: false, message: 'Account is not a listener' });
-      }
+    // Determine role based on which FK is set
+    let role = null;
+    if (row.artistId != null && row.userId == null) {
+      role = "artist";
+    } else if (row.userId != null && row.artistId == null) {
+      role = "listener";
+    } else {
+      // Should not happen if CHECK constraint is enforced
+      return res.status(500).json({
+        success: false,
+        message: "Login row has invalid linkage (both or neither IDs set)"
+      });
     }
 
-    return res.json({ success: true, message: 'Login successful' });
+    return res.json({
+      success: true,
+      message: "Login successful",
+      role,
+      loginId: row.loginId,
+      userId: row.userId,
+      artistId: row.artistId
+    });
   });
 });
 
-// ------ Serve the website ------
+// ------ Serve the login page ------
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
