@@ -132,7 +132,11 @@ VALUES
 (9, 4, NULL, 'no'),
 (10, 5, NULL, 'm#12');
 
-    
 
+-- USER FOR MYSQL CONNECTION
+CREATE USER 'notifyapp'@'localhost'
+IDENTIFIED WITH mysql_native_password BY 'password';
+GRANT ALL PRIVILEGES ON notify_db.* TO 'notifyapp'@'localhost';
+FLUSH PRIVILEGES;
     
     

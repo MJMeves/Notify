@@ -9,8 +9,8 @@ app.use(express.static("public"));
 // ------ MySQL connection ------
 const db = mysql.createConnection({
   host: "localhost",
-  user: "root",
-  password: "***YOUR ROOT PASSWORD GOES HERE!",
+  user: "notifyapp",
+  password: "password",
   database: "notify_db"
 });
 
