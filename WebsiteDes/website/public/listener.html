@@ -39,6 +39,7 @@
             debugText += `\nError reading response body.`;
           }
         }
+        
         document.getElementById('debug').textContent = debugText;
         return data;
       })
@@ -47,13 +48,14 @@
           document.getElementById('listener-info').textContent = (data && data.message) || 'Failed to load info.';
           return;
         }
+
         const info = data.data;
         document.getElementById('listener-info').innerHTML = `
           <p>First Name: ${info.FirstName}</p>
           <p>Last Name: ${info.LastName}</p>
           <p>User Name: ${info.UserName}</p>
           <p>Minutes Listened: ${info.MinutesListened}</p>
-          <p>Favorite Song ID: ${info.FavoriteSongID}</p>
+          <p>Favorite Song: ${info.FavoriteSongName || ''}</p>
           <p>Favorite Genre: ${info.FavoriteGenre}</p>
           <p>Favorite Artist ID: ${info.FavoriteArtistID}</p>
           <p>Subscription Type: ${info.SubscriptionType}</p>

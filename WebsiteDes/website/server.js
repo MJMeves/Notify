@@ -29,11 +29,13 @@ app.get("/api/artist-simple", (req, res) => {
   if (!artistId) {
     return res.status(400).json({ success: false, message: "Missing artistId" });
   }
+  
   const sql = `
     SELECT StageName, FirstName, LastName, Email, DOB, ListenerCount, FollowerCount, MinutesListenedTo
     FROM artist
     WHERE ArtistID = ?
   `;
+
   db.query(sql, [artistId], (err, results) => {
     console.log("SQL results for artistId", artistId, ":", results);
     if (err) {
@@ -55,22 +57,40 @@ app.get("/api/listener-simple", (req, res) => {
   if (!userId) {
     return res.status(400).json({ success: false, message: "Missing userId" });
   }
-  const sql = `
+
+  const sql1 = `
     SELECT FirstName, LastName, UserName, MinutesListened, FavoriteSongID, FavoriteGenre, FavoriteArtistID, SubscriptionType, JoinDate
     FROM listener
     WHERE UserID = ?
   `;
-  db.query(sql, [userId], (err, results) => {
+
+  db.query(sql1, [userId], (err, results) => {
     console.log("SQL results for userId", userId, ":", results);
     if (err) {
-      console.error("DB error in /api/listener-simple:", err);
+      console.error("DB error in /api/listener-simple (listener query):", err);
       return res.status(500).json({ success: false, message: "Database error" });
     }
+
     if (!results || results.length === 0) {
       console.warn("No listener found for userId", userId);
       return res.status(404).json({ success: false, message: "Listener not found" });
     }
-    res.json({ success: true, data: results[0] });
+
+    const info = results[0];
+    if (!info.FavoriteSongID) {
+      return res.json({ success: true, data: { ...info, FavoriteSongName: null } });
+    }
+
+    // Second query for song name
+    db.query('SELECT SongName FROM song WHERE SongID = ?', [info.FavoriteSongID], (err2, results2) => {
+      if (err2) {
+        console.error("DB error in /api/listener-simple (song query):", err2);
+        return res.status(500).json({ success: false, message: "Database error (song)" });
+      }
+
+      const songName = (results2 && results2[0] && results2[0].SongName) || null;
+      return res.json({ success: true, data: { ...info, FavoriteSongName: songName } });
+    });
   });
 });
 
