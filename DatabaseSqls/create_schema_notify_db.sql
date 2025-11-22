@@ -138,5 +138,116 @@ CREATE USER 'notifyapp'@'localhost'
 IDENTIFIED WITH mysql_native_password BY 'password';
 GRANT ALL PRIVILEGES ON notify_db.* TO 'notifyapp'@'localhost';
 FLUSH PRIVILEGES;
+
+
+-- Trigger 1 
+-- Ensures that after a song is listened to by a listener, the artist's ListenerCount 
+-- and MinutesListenedTo is updated in the artist table
+DELIMITER $$
+CREATE TRIGGER afterSong_ListenCount_Update
+AFTER UPDATE ON song
+FOR EACH ROW
+BEGIN
+	IF NEW.ListenCount > OLD.ListenCount THEN
+		SET @listen_diff = NEW.ListenCount - OLD.ListenCount;
+		UPDATE artist
+        SET 
+			MinutesListenedTo = MinutesListenedTo + (NEW.Length * @listen_diff),
+			ListenerCount = ListenerCount + @listen_diff
+		WHERE ArtistID = NEW.ArtistID;
+	END IF;
+END $$
+DELIMITER ;
+
+-- Trigger 2
+-- Guarantees that when someone tries to login to Notify, that they are registered only
+-- as a listener or only as an artist and not both.
+DELIMITER $$
+CREATE TRIGGER before_Login_Check_Id
+BEFORE INSERT ON login
+FOR EACH ROW
+BEGIN
+	IF NEW.UserID IS NOT NULL AND NEW.ArtistID IS NOT NULL THEN
+		SET NEW.ArtistID = NULL;
+	ELSEIF NEW.ArtistID IS NOT NULL AND NEW.UserID IS NOT NULL THEN
+		SET NEW.UserID = NULL;
+	ELSEIF NEW.ArtistID IS NULL AND NEW.UserID IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = "Error. A Notify account can only be associated with a UserID 
+			or an ArtistID, not both.";
+	END IF;
+END $$
+DELIMITER ;
+
+-- Trigger 3
+-- If a song is deleted from the database, this trigger makes sure that any listener
+-- whose FavoriteSongID matched SongID of the song deleted, there FavoriteSongID will
+-- be set to NULL as that song does not exist anymore. 
+DELIMITER $$
+CREATE TRIGGER after_SongDeleted_UpdateFavSong
+AFTER DELETE ON song
+FOR EACH ROW
+BEGIN
+	UPDATE listener
+    SET FavoriteSongID = NULL
+    WHERE FavoriteSongID = OLD.SongID;
+END $$
+DELIMITER ;
+
+-- Procedure that takes a UserID and Password as input and checks to see if first, 
+-- the UserID has an account, and second, if the entered Password is correct for
+-- that specific UserID
+DELIMITER $$
+CREATE PROCEDURE check_User_Password (
+	IN inUserID int,
+    IN inPassword varchar(100)
+)
+BEGIN
+	DECLARE storedPass varchar(100);
+    SELECT Password into storedPass
+    FROM login
+    WHERE UserID = inUserID;
+    
+    IF storedPass IS NULL THEN
+		SELECT 'UserID not found' AS STATUS;
+	ELSE
+		IF storedPass = inPassword THEN
+			SELECT 'Login successful' AS STATUS;
+		ELSE
+			SELECT 'Incorrect password' AS STATUS;
+		END IF;
+	END IF;
+END $$
+DELIMITER ;
+
+-- This function assigns listeners a loyaltyLevel determined by their MinutesListened.
+-- Their loyaltyLevel is returned as an output of this function.
+DELIMITER $$
+DROP FUNCTION IF EXISTS UserLoyaltyLevel;
+CREATE FUNCTION UserLoyaltyLevel(inUserID int)
+RETURNS varchar(50)
+DETERMINISTIC
+BEGIN
+	DECLARE totalMin int;
+    DECLARE loyaltyLevel varchar(50);
+    SELECT MinutesListened INTO totalMin
+    FROM listener
+    WHERE UserID = inUserID;
+    IF totalMin IS NULL THEN
+		RETURN 'Unknown user. No data reported.';
+	END IF;
+    IF totalMin >= 500 THEN
+		SET loyaltyLevel = 'Musical genius.';
+    ELSEIF totalMin >= 100 THEN
+		SET loyaltyLevel = 'Average tunes listener.';
+    ELSEIF totalMin >= 50 THEN
+		SET loyaltyLevel = 'Casual sound consumer.';
+	ELSE
+		SET loyaltyLevel = 'Newbie. You will get there.';
+	END IF;
+    RETURN loyaltyLevel;
+END $$
+DELIMITER ;
+
     
     
