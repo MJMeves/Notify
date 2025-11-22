@@ -1,0 +1,8 @@
+To run website:
+1) Install node.js
+2) download website folder
+3) go into terminal and navigate inside the website folder
+4) run npm install
+5) Take the sql file in the DatabaseSqls folder and run that in your MySql to create the db and tables
+6) Back in the terminal, run node server.js
+7) In your web browser, go to: http://localhost:3000
