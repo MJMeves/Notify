@@ -53,8 +53,6 @@ app.post("/api/login", (req, res) => {
 
     const row = results[0];
 
-    // Plaintext comparison (your sample data is plaintext).
-    // In a real app you'd hash and compare.
     if (row.storedPassword !== password) {
       return res
         .status(401)
@@ -68,7 +66,6 @@ app.post("/api/login", (req, res) => {
     } else if (row.userId != null && row.artistId == null) {
       role = "listener";
     } else {
-      // Should not happen if CHECK constraint is enforced
       return res.status(500).json({
         success: false,
         message: "Login row has invalid linkage (both or neither IDs set)"
