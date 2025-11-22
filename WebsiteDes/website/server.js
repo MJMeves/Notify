@@ -1,3 +1,4 @@
+
 const express = require("express");
 const mysql = require("mysql2");
 const path = require("path");
@@ -20,6 +21,32 @@ db.connect((err) => {
     return;
   }
   console.log("Connected to MySQL (notify_db)!");
+});
+
+// ------ Simple listener info endpoint ------
+app.get("/api/listener-simple", (req, res) => {
+  const userId = req.query.userId;
+  console.log("/api/listener-simple called with userId:", userId);
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "Missing userId" });
+  }
+  const sql = `
+    SELECT FirstName, LastName, UserName, MinutesListened, FavoriteSongID, FavoriteGenre, FavoriteArtistID, SubscriptionType, JoinDate
+    FROM listener
+    WHERE UserID = ?
+  `;
+  db.query(sql, [userId], (err, results) => {
+    console.log("SQL results for userId", userId, ":", results);
+    if (err) {
+      console.error("DB error in /api/listener-simple:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+    if (!results || results.length === 0) {
+      console.warn("No listener found for userId", userId);
+      return res.status(404).json({ success: false, message: "Listener not found" });
+    }
+    res.json({ success: true, data: results[0] });
+  });
 });
 
 // ------ Login route (LoginID + Password) ------

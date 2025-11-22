@@ -11,8 +11,62 @@
     </ul>
   </nav>
   
-  <h1>Listener Home</h1>
-  <p>This is the new Listener page linked from the main page.</p>
+  <h1>Listener #<span id="listener-id"></span> Homepage</h1>
+  <div id="listener-info"></div>
+  <pre id="debug" style="background:#eee;color:#333;padding:8px;display: none"></pre>
   <p><a href="index.html">Back to Home</a></p>
 </body>
+<script>
+  // Set the listener ID in the homepage text
+  const listenerId = localStorage.getItem('userId');
+  document.getElementById('listener-id').textContent = listenerId || '';
+
+  // Fetch and display listener info
+  if (listenerId) {
+    fetch(`/api/listener-simple?userId=${encodeURIComponent(listenerId)}`)
+      .then(async res => {
+        let debugText = `userId: ${listenerId}\nStatus: ${res.status} ${res.statusText}`;
+        let data = null;
+        let raw = null;
+        try {
+          data = await res.json();
+          debugText += `\nJSON: ${JSON.stringify(data, null, 2)}`;
+        } catch (e) {
+          try {
+            raw = await res.text();
+            debugText += `\nRaw: ${raw}`;
+          } catch (e2) {
+            debugText += `\nError reading response body.`;
+          }
+        }
+        document.getElementById('debug').textContent = debugText;
+        return data;
+      })
+      .then(data => {
+        if (!data || !data.success) {
+          document.getElementById('listener-info').textContent = (data && data.message) || 'Failed to load info.';
+          return;
+        }
+        const info = data.data;
+        document.getElementById('listener-info').innerHTML = `
+          <p>First Name: ${info.FirstName}</p>
+          <p>Last Name: ${info.LastName}</p>
+          <p>User Name: ${info.UserName}</p>
+          <p>Minutes Listened: ${info.MinutesListened}</p>
+          <p>Favorite Song ID: ${info.FavoriteSongID}</p>
+          <p>Favorite Genre: ${info.FavoriteGenre}</p>
+          <p>Favorite Artist ID: ${info.FavoriteArtistID}</p>
+          <p>Subscription Type: ${info.SubscriptionType}</p>
+          <p>Join Date: ${info.JoinDate ? info.JoinDate.substring(0, 10) : ''}</p>
+        `;
+      })
+      .catch(err => {
+        document.getElementById('listener-info').textContent = 'Error loading info.';
+        document.getElementById('debug').textContent += '\nFetch error: ' + err;
+      });
+  } else {
+    document.getElementById('listener-info').textContent = 'No userId found. Please log in again.';
+    document.getElementById('debug').textContent = 'No userId in localStorage.';
+  }
+</script>
 </html>

@@ -79,8 +79,14 @@
 
         // Redirect based on role returned by server
         if (data.role === "artist") {
+          if (data.artistId) localStorage.setItem('artistId', data.artistId);
+          //console.log(localStorage.getItem('artistId'));
+
           window.location.href = "artist.html";
         } else if (data.role === "listener") {
+          if (data.userId) localStorage.setItem('userId', data.userId);
+          //console.log(localStorage.getItem('userId'));
+
           window.location.href = "listener.html";
         } else {
           statusEl.textContent =
