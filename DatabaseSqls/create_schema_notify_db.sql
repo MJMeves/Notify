@@ -249,5 +249,77 @@ BEGIN
 END $$
 DELIMITER ;
 
-    
+--Views
+DROP VIEW IF EXISTS FavoritedArtists;
+CREATE VIEW FavoritedArtists AS
+SELECT DISTINCT L.UserID, A.ArtistID
+From artist A, listener L 
+WHERE L.FavoriteArtistID = A.ArtistID
+ORDER BY L.UserID;
+SELECT * FROM FavoritedArtists;
+
+DROP VIEW IF EXISTS FavoritedSongs;
+CREATE VIEW FavoritedSongs AS
+SELECT DISTINCT L.UserID, S.SongID
+From song S, listener L 
+WHERE L.FavoriteSongID = S.SongID
+ORDER BY L.UserID;
+SELECT * FROM FavoritedSongs;
+
+
+-- Queries
+USE notify_db;
+-- Query 1 (JOIN - all usernames/emails and passwords for all users and artists)
+SELECT DISTINCT U.UserName, L.Password
+FROM listener U, login L
+WHERE L.UserID = U.UserID
+UNION
+SELECT DISTINCT A.Email, L.Password
+FROM artist A, login L
+WHERE L.ArtistID = A.ArtistID;
+
+-- Query 2 (JOIN - all artists ranked by most listened and then by most listened song for each)
+DROP VIEW IF EXISTS ArtistStats;
+CREATE VIEW ArtistStats AS
+SELECT A.ArtistID, A.MinutesListenedTo, S.SongID, S.ListenCount
+FROM artist A
+JOIN song S ON A.ArtistID = S.ArtistID
+ORDER BY A.MinutesListenedTo DESC, S.ListenCount DESC, A.ArtistID;
+SELECT * FROM ArtistStats;
+
+-- Query 3 (JOIN & VIEW & SUBQUERY & AGGREGATION - show the top 5 favorited artists by listeners)
+SELECT A.ArtistID, A.FirstName, A.LastName, A.StageName, F.ListenerCount
+FROM artist A
+JOIN (
+	SELECT ArtistID, COUNT(*) AS ListenerCount
+    FROM FavoritedArtists
+    GROUP BY ArtistID
+    ORDER BY ListenerCount DESC
+    LIMIT 5
+) F ON A.ArtistID = F.ArtistID
+ORDER BY F.ListenerCount DESC;
+
+-- Query 4 (JOIN & VIEW & SUBQUERY & AGGREGATION - show the top 5 favorited songs by listeners)
+SELECT S.SongID, S.SongName, F.ListenerCount
+FROM song S
+JOIN (
+	SELECT SongID, COUNT(*) AS ListenerCount
+    FROM FavoritedSongs
+    GROUP BY SongID
+    ORDER BY ListenerCount DESC
+    LIMIT 5
+) F ON S.SongID = F.SongID
+ORDER BY F.ListenerCount DESC;
+
+-- Query 5 (AGGREGATION - show the top 5 favorited genres by listeners)
+DROP VIEW IF EXISTS TopFavGenres;
+CREATE VIEW TopFavGenres AS
+SELECT FavoriteGenre, COUNT(*) AS NumFavs
+FROM listener
+WHERE FavoriteGenre IS NOT NULL
+GROUP BY FavoriteGenre
+ORDER BY NumFavs DESC
+LIMIT 5;
+SELECT * FROM TopFavGenres;
+
     

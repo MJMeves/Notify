@@ -34,7 +34,7 @@
                 It orders the results by total minutes listened in descending order, then by number of plays. This ordering puts all the artists in order of most
                 listened to least and then each of the artist's songs from most played to least played.
             </p>
-            <p>Types: <em>JOIN, VIEW</em></p>
+            <p>Types: <em>JOIN</em></p>
             <pre><code>
                 DROP VIEW IF EXISTS ArtistStats;
                 CREATE VIEW ArtistStats AS
@@ -52,19 +52,16 @@
                 groups the results by artist ID, orders them in descending order based on the count, and limits the output to the top 5 artists.</p>
             <p>Types: <em>JOIN, VIEW, SUBQUERY, AGGREGATION</em></p>
             <pre><code>
-                DROP VIEW IF EXISTS TopFavArtists;
-                CREATE VIEW TopFavArtists AS
-                SELECT A.ArtistID, A.FirstName, A.LastName, A.StageName, L.ListenerCount
+                SELECT A.ArtistID, A.FirstName, A.LastName, A.StageName, F.ListenerCount
                 FROM artist A
                 JOIN (
-                    SELECT FavoriteArtistID, COUNT(*) AS ListenerCount
-                    FROM listener
-                    GROUP BY FavoriteArtistID
+                    SELECT ArtistID, COUNT(*) AS ListenerCount
+                    FROM FavoritedArtists
+                    GROUP BY ArtistID
                     ORDER BY ListenerCount DESC
                     LIMIT 5
-                ) L ON A.ArtistID = L.FavoriteArtistID
-                ORDER BY L.ListenerCount DESC;
-                SELECT * FROM TopFavArtists;
+                ) F ON A.ArtistID = F.ArtistID
+                ORDER BY F.ListenerCount DESC;
             </code></pre>
         </section>
 
@@ -74,19 +71,16 @@
                 groups the results by song ID, orders them in descending order based on the count, and limits the output to the top 5 songs.</p>
             <p>Types: <em>JOIN, VIEW, SUBQUERY, AGGREGATION</em></p>
             <pre><code>
-                DROP VIEW IF EXISTS TopFavSongs;
-                CREATE VIEW TopFavSongs AS
-                SELECT S.SongID, S.SongName, L.ListenerCount
+                SELECT S.SongID, S.SongName, F.ListenerCount
                 FROM song S
                 JOIN (
-                    SELECT FavoriteSongID, COUNT(*) AS ListenerCount
-                    FROM listener
-                    GROUP BY FavoriteSongID
+                    SELECT SongID, COUNT(*) AS ListenerCount
+                    FROM FavoritedSongs
+                    GROUP BY SongID
                     ORDER BY ListenerCount DESC
                     LIMIT 5
-                ) L ON S.SongID = L.FavoriteSongID
-                ORDER BY L.ListenerCount DESC;
-                SELECT * FROM TopFavSongs;
+                ) F ON S.SongID = F.SongID
+                ORDER BY F.ListenerCount DESC;
             </code></pre>
         </section>
 
@@ -94,7 +88,7 @@
             <h2>Query 5: Top 5 Favorited Genres</h2>
             <p>This query counts the number of times each genre appears as the favorited genre for each listener. It then ranks them based
                 on the count in descending order and limits the output to the top 5 genres.</p>
-            <p>Types: <em>VIEW, AGGREGATION</em></p>
+            <p>Types: <em>AGGREGATION</em></p>
             <pre><code>
                 DROP VIEW IF EXISTS TopFavGenres;
                 CREATE VIEW TopFavGenres AS
