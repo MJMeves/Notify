@@ -10,8 +10,39 @@
       <li><a href="queries.html">5 Queries</a></li>
     </ul>
   </nav>
-  <h1>Artist Home</h1>
-  <p>This is the new Artist page linked from the main page.</p>
+  <h1>Artist #<span id="artist-id"></span> Homepage</h1>
+  <div id="artist-info"></div>
   <p><a href="index.html">Back to Home</a></p>
+</body>
+<script>
+  // Set the artist ID in the homepage text
+  const artistId = localStorage.getItem('artistId');
+  document.getElementById('artist-id').textContent = artistId || '';
+
+  // Fetch and display artist info
+  if (artistId) {
+    fetch(`/api/artist-simple?artistId=${encodeURIComponent(artistId)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          document.getElementById('artist-info').textContent = data.message || 'Failed to load info.';
+          return;
+        }
+        const info = data.data;
+        document.getElementById('artist-info').innerHTML = `
+          <p>Stage Name: ${info.StageName}</p>
+          <p>First Name: ${info.FirstName}</p>
+          <p>Last Name: ${info.LastName}</p>
+          <p>Email: ${info.Email}</p>
+          <p>DOB: ${info.DOB ? info.DOB.substring(0, 10) : ''}</p>
+          <p>Listener Count: ${info.ListenerCount}</p>
+          <p>Follower Count: ${info.FollowerCount}</p>
+          <p>Minutes Listened To: ${info.MinutesListenedTo}</p>
+        `;
+      });
+  } else {
+    document.getElementById('artist-info').textContent = 'No artistId found. Please log in again.';
+  }
+</script>
 </body>
 </html>

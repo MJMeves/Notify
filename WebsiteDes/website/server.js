@@ -1,4 +1,3 @@
-
 const express = require("express");
 const mysql = require("mysql2");
 const path = require("path");
@@ -21,6 +20,32 @@ db.connect((err) => {
     return;
   }
   console.log("Connected to MySQL (notify_db)!");
+});
+
+// ------ Simple artist info endpoint ------
+app.get("/api/artist-simple", (req, res) => {
+  const artistId = req.query.artistId;
+  console.log("/api/artist-simple called with artistId:", artistId);
+  if (!artistId) {
+    return res.status(400).json({ success: false, message: "Missing artistId" });
+  }
+  const sql = `
+    SELECT StageName, FirstName, LastName, Email, DOB, ListenerCount, FollowerCount, MinutesListenedTo
+    FROM artist
+    WHERE ArtistID = ?
+  `;
+  db.query(sql, [artistId], (err, results) => {
+    console.log("SQL results for artistId", artistId, ":", results);
+    if (err) {
+      console.error("DB error in /api/artist-simple:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+    if (!results || results.length === 0) {
+      console.warn("No artist found for artistId", artistId);
+      return res.status(404).json({ success: false, message: "Artist not found" });
+    }
+    res.json({ success: true, data: results[0] });
+  });
 });
 
 // ------ Simple listener info endpoint ------
