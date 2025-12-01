@@ -12,25 +12,99 @@
   </nav>
   <h1>Artist #<span id="artist-id"></span> Homepage</h1>
   <div id="artist-info"></div>
-  <p><a href="index.html">Back to Home</a></p>
+
+
+  <!-- Publish new song -->
+  <hr style="margin-top: 30px; margin-bottom: 20px;">
+  <h2>Publish New Song</h2>
+
+  <form id="songForm">
+    <div style="margin-bottom: 8px;">
+      <label for="songId">Song ID (Must be unique):</label>
+      <input type="number" id="songId" name="songId" required min="1" />
+    </div>
+    <div style="margin-bottom: 8px;">
+      <label for="songName">Song Name:</label>
+      <input type="text" id="songName" name="songName" required />
+    </div>
+    <div style="margin-bottom: 8px;">
+      <label for="genre">Genre:</label>
+      <select id="genre" name="genre" required>
+        <option value="" disabled selected>Select Genre</option>
+        <option value="Pop">Pop</option>
+        <option value="Rock">Rock</option>
+        <option value="Hip-Hop">Hip-Hop</option>
+        <option value="Country">Country</option>
+        <option value="Blues">Blues</option>
+        <option value="R&B">R&B</option>
+        <option value="Jazz">Jazz</option>
+        <option value="Classical">Classical</option>
+      </select>
+    </div>
+    <div style="margin-bottom: 8px;">
+      <label for="length">Length (Seconds):</label>
+      <input type="number" id="length" name="length" required min="1" />
+    </div>
+    <!-- Hidden input to send the artist ID from localStorage -->
+    <input type="hidden" id="artistId" name="artistId"> 
+
+    <div style="margin-top: 15px;">
+      <button type="submit" id="submitButton">Submit Song</button>
+    </div>
+    <div 
+      id="messageBox"
+      role="status"
+      aria-live="polite"
+      style="margin-top: 10px; padding: 5px; border: 1px solid transparent; display: none;"
+    ></div>
+  </form>
+  
+  <!-- Back to Home link MOVED to the very bottom -->
+  <p style="margin-top: 20px;"><a href="index.html">Back to Home</a></p>
+
 </body>
 <script>
   // Set the artist ID in the homepage text
   const artistId = localStorage.getItem('artistId');
-  document.getElementById('artist-id').textContent = artistId || '';
+  const artistIdEl = document.getElementById('artist-id');
+  const artistInfoDiv = document.getElementById('artist-info');
+  const artistIdInput = document.getElementById('artistId');
+  const messageBox = document.getElementById('messageBox');
 
-  // Fetch and display artist info
-  if (artistId) {
+  // Helper function for simplified message display
+  function displayMessage(text, isSuccess = true) {
+      messageBox.textContent = text;
+      messageBox.style.display = 'block';
+      if (isSuccess) {
+          messageBox.style.color = '#080';
+          messageBox.style.borderColor = '#080';
+      } else {
+          messageBox.style.color = '#b00';
+          messageBox.style.borderColor = '#b00';
+      }
+  }
+
+  // Basic check for authentication
+  if (!artistId) {
+    artistInfoDiv.textContent = 'No artistId found. Please log in again.';
+    window.location.href = 'index.html';
+  } else {
+    // ONLY execute the rest of the script if artistId exists
+
+    artistIdEl.textContent = artistId;
+    artistIdInput.value = artistId; // Set the hidden input value
+
+    // Fetch and display artist info (Original logic kept)
     fetch(`/api/artist-simple?artistId=${encodeURIComponent(artistId)}`)
       .then(res => res.json())
       .then(data => {
         if (!data.success) {
-          document.getElementById('artist-info').textContent = data.message || 'Failed to load info.';
+          artistInfoDiv.textContent = data.message || 'Failed to load info.';
           return;
         }
         const info = data.data;
-        document.getElementById('artist-info').innerHTML = `
-          <p>Stage Name: ${info.StageName}</p>
+        artistInfoDiv.innerHTML = `
+          <p>Stage Name: ${info.StageName || 'N/A'}</p>
           <p>First Name: ${info.FirstName}</p>
           <p>Last Name: ${info.LastName}</p>
           <p>Email: ${info.Email}</p>
@@ -39,10 +113,62 @@
           <p>Follower Count: ${info.FollowerCount}</p>
           <p>Minutes Listened To: ${info.MinutesListenedTo}</p>
         `;
+      })
+      .catch(err => {
+        artistInfoDiv.textContent = 'Error fetching artist data.';
+        console.error('Fetch error:', err);
       });
-  } else {
-    document.getElementById('artist-info').textContent = 'No artistId found. Please log in again.';
+
+    // --- New Logic: Handle Song Submission ---
+    document.getElementById('songForm').onsubmit = async (event) => {
+      event.preventDefault();
+
+      const form = event.target;
+      const submitButton = document.getElementById('submitButton');
+
+      // Gather data from the form
+      const data = {
+        songId: form.songId.value, 
+        songName: form.songName.value,
+        genre: form.genre.value,
+        length: form.length.value,
+        artistId: artistId // Taken from localStorage
+      };
+
+      // Set loading state
+      submitButton.textContent = 'Submitting...';
+      submitButton.disabled = true;
+      messageBox.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/add-song', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          displayMessage(`Success! Song "${data.songName}" (ID: ${data.songId}) added.`, true);
+          form.reset();
+          // Keep the artist ID pre-filled after reset
+          artistIdInput.value = artistId; 
+        } else {
+          // Handle API errors (including Duplicate ID error from server.js)
+          displayMessage(`Error: ${result.message || 'Could not add song.'}`, false);
+        }
+      } catch (error) {
+        console.error('Network or client error:', error);
+        displayMessage('A network error occurred. Check the server console.', false);
+      } finally {
+        // Reset button
+        submitButton.textContent = 'Submit Song';
+        submitButton.disabled = false;
+      }
+    };
   }
 </script>
-</body>
 </html>
