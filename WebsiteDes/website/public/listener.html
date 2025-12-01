@@ -1,74 +1,175 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Listener Page</title>
+<title>Listener Page</title>
+<style>
+  .card{padding:10px;border:1px solid #ccc;margin:6px;border-radius:8px;}
+  button{margin-top:4px;padding:6px;}
+</style>
 </head>
 <body>
-  <nav>
-    <ul>
-      <li><a href="queries.html">5 Queries</a></li>
-    </ul>
-  </nav>
-  
-  <h1>Listener #<span id="listener-id"></span> Homepage</h1>
-  <div id="listener-info"></div>
-  <pre id="debug" style="background:#eee;color:#333;padding:8px;display: none"></pre>
-  <p><a href="index.html">Back to Home</a></p>
-</body>
+
+<nav>
+  <ul>
+    <li><a href="queries.html">5 Queries</a></li>
+    <li><a href="index.html">Logout</a></li>
+  </ul>
+</nav>
+
+<h1>Listener #<span id="listener-id"></span></h1>
+
+<div id="profile"></div>
+<h3><u>Your Loyalty Level</u></h3>
+<p id="loyalty"></p>
+
+<hr>
+
+<h2>Favorite an Artist</h2>
+<input id="favArtist" placeholder="Enter ArtistID">
+<button onclick="favoriteArtist()">Save Artist</button>
+
+<h2>Favorite a Song</h2>
+<input id="favSong" placeholder="Enter SongID">
+<button onclick="favoriteSong()">Save Song</button>
+
+<hr>
+
+<h2>Play A Song</h2>
+<input id="songPlay" placeholder="SongID to Play">
+<button onclick="playSong()">Play</button>
+<p id="playStatus"></p>
+
+<hr>
+
+<h2>Top 5 Favorited Artists</h2>
+<div id="top-artists"></div>
+
+<h2>Top 5 Favorited Songs</h2>
+<div id="top-songs"></div>
+
+<p><a href="index.html">Logout</a></p>
+
 <script>
-  // Set the listener ID in the homepage text
-  const listenerId = localStorage.getItem('userId');
-  document.getElementById('listener-id').textContent = listenerId || '';
+const id = localStorage.getItem("userId");
+document.getElementById("listener-id").textContent=id;
 
-  // Fetch and display listener info
-  if (listenerId) {
-    fetch(`/api/listener-simple?userId=${encodeURIComponent(listenerId)}`)
-      .then(async res => {
-        let debugText = `userId: ${listenerId}\nStatus: ${res.status} ${res.statusText}`;
-        let data = null;
-        let raw = null;
-        try {
-          data = await res.json();
-          debugText += `\nJSON: ${JSON.stringify(data, null, 2)}`;
-        } catch (e) {
-          try {
-            raw = await res.text();
-            debugText += `\nRaw: ${raw}`;
-          } catch (e2) {
-            debugText += `\nError reading response body.`;
-          }
-        }
-        
-        document.getElementById('debug').textContent = debugText;
-        return data;
-      })
-      .then(data => {
-        if (!data || !data.success) {
-          document.getElementById('listener-info').textContent = (data && data.message) || 'Failed to load info.';
-          return;
-        }
 
-        const info = data.data;
-        document.getElementById('listener-info').innerHTML = `
-          <p>First Name: ${info.FirstName}</p>
-          <p>Last Name: ${info.LastName}</p>
-          <p>User Name: ${info.UserName}</p>
-          <p>Minutes Listened: ${info.MinutesListened}</p>
-          <p>Favorite Song: ${info.FavoriteSongName || ''}</p>
-          <p>Favorite Genre: ${info.FavoriteGenre}</p>
-          <p>Favorite Artist ID: ${info.FavoriteArtistID}</p>
-          <p>Subscription Type: ${info.SubscriptionType}</p>
-          <p>Join Date: ${info.JoinDate ? info.JoinDate.substring(0, 10) : ''}</p>
-        `;
-      })
-      .catch(err => {
-        document.getElementById('listener-info').textContent = 'Error loading info.';
-        document.getElementById('debug').textContent += '\nFetch error: ' + err;
+// ---------- Load Profile ----------
+fetch(`/api/listener-simple?userId=${id}`)
+.then(r=>r.json()).then(x=>{
+ if(!x.success)return;
+ const a=x.data;
+ document.getElementById("profile").innerHTML=
+ `<p>Name: ${a.FirstName} ${a.LastName}</p>
+  <p>Username: ${a.UserName}</p>
+  <p>Minutes: ${a.MinutesListened}</p>
+  <p>Favorite Song: ${a.FavoriteSongName||'None'}</p>
+  <p>Favorite Artist ID: ${a.FavoriteArtistID||'None'}</p>`;
+});
+
+// ---------- Loyalty Level ----------
+fetch(`/api/loyalty-level?userId=${id}`)
+.then(r=>r.json()).then(x=>{
+ if(x.success)document.getElementById("loyalty").textContent=x.level;
+});
+
+// ---------- SAVE FAVORITES ----------
+function favoriteSong(){
+ fetch("/api/favorite-song",{
+  method:"POST",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({userId:id,songId:favSong.value})
+ })
+ .then(r=>r.json())
+ .then(x=>{
+   alert("Favorited Song: " + x.songName);
+   loadTopFavorites();    // refresh card lists live
+   loadProfile();         // updates "favorite song" text
+ });
+}
+
+function favoriteArtist(){
+ fetch("/api/favorite-artist",{
+  method:"POST",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({userId:id,artistId:favArtist.value})
+ })
+ .then(r=>r.json())
+ .then(x=>{
+   alert("Favorited Artist: " + x.artistName);
+   loadTopFavorites();
+   loadProfile();
+ });
+}
+
+// ---------- PLAY ----------
+function playSong(){
+  const id = songPlay.value.trim();   // <— removes whitespace
+  fetch("/api/play",{
+    method:"POST",
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({songId:id})
+  })
+  .then(r=>r.json())
+  .then(x=>{
+    document.getElementById("playStatus").textContent =
+        "Played: " + (x.songName ?? "Not Found");
+    loadTopFavorites();
+  });
+}
+
+
+// ---------- TOP 5 DISPLAY ----------
+fetch("/api/top-artists").then(r=>r.json()).then(x=>{
+ if(!x.success)return;
+ x.data.forEach(a=>{
+ document.getElementById("top-artists").innerHTML+=
+ `<div class="card">${a.StageName} — ${a.ListenerCount}</div>`;
+ });
+});
+
+fetch("/api/top-songs").then(r=>r.json()).then(x=>{
+ if(!x.success)return;
+ x.data.forEach(s=>{
+ document.getElementById("top-songs").innerHTML+=
+ `<div class="card">${s.SongName} — ${s.ListenerCount}</div>`;
+ });
+});
+
+// ---------- Refresh Helpers ----------
+  function loadTopFavorites(){
+    const artistBox = document.getElementById("top-artists");
+    const songBox   = document.getElementById("top-songs");
+
+    artistBox.innerHTML = "";
+    songBox.innerHTML   = "";
+
+    fetch("/api/top-artists").then(r=>r.json()).then(x=>{
+      x.data?.forEach(a=>{
+        artistBox.innerHTML += `<div class="card">${a.StageName||'(No Stage Name)'} — ❤️ ${a.ListenerCount}</div>`;
       });
-  } else {
-    document.getElementById('listener-info').textContent = 'No userId found. Please log in again.';
-    document.getElementById('debug').textContent = 'No userId in localStorage.';
+    });
+
+    fetch("/api/top-songs").then(r=>r.json()).then(x=>{
+      x.data?.forEach(s=>{
+        songBox.innerHTML += `<div class="card">${s.SongName} — 🎧 ${s.ListenerCount}</div>`;
+      });
+    });
+  }
+
+
+  function loadProfile(){
+    fetch(`/api/listener-simple?userId=${id}`).then(r=>r.json()).then(x=>{
+      const a=x.data;
+      profile.innerHTML=
+      `<p>Name: ${a.FirstName} ${a.LastName}</p>
+        <p>Username: ${a.UserName}</p>
+        <p>Minutes: ${a.MinutesListened}</p>
+        <p>Favorite Song: ${a.FavoriteSongName||'None'}</p>
+        <p>Favorite Artist ID: ${a.FavoriteArtistID||'None'}</p>`;
+    });
   }
 </script>
+</body>
 </html>
+

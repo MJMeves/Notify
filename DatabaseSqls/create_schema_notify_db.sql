@@ -37,7 +37,7 @@ CREATE TABLE `song` (
 
 -- Listener Table
 CREATE TABLE `listener` (
-	`UserID` int NOT NULL,
+	`UserID` int NOT NULL auto_increment,
     `FirstName` varchar(50) NOT NULL,
     `LastName` varchar(50) NOT NULL,
     `UserName` varchar(50) NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE `listener` (
 
 -- Login Table
 CREATE TABLE `login` (
-	`LoginID` int NOT NULL,
+	`LoginID` int NOT NULL auto_increment,
     `UserID` int,
     `ArtistID` int,
     `Password` varchar(100) NOT NULL,
@@ -82,6 +82,19 @@ CREATE TABLE `login` (
     FOREIGN KEY (`UserID`) REFERENCES `listener` (`UserID`),
     FOREIGN KEY (`SongID`) REFERENCES `song` (`SongID`)
 )*/
+
+DELIMITER $$
+CREATE TRIGGER set_default_stagename
+BEFORE INSERT ON artist
+FOR EACH ROW
+BEGIN
+    -- If no stage name is provided, default to FirstName + LastName
+    IF NEW.StageName IS NULL OR NEW.StageName = '' THEN
+        SET NEW.StageName = CONCAT(NEW.FirstName, ' ', NEW.LastName);
+    END IF;
+END$$
+DELIMITER ;
+
 
 -- DML
 
@@ -134,6 +147,7 @@ VALUES
 
 
 -- USER FOR MYSQL CONNECTION
+DROP USER IF EXISTS 'notifyapp'@'localhost';
 CREATE USER 'notifyapp'@'localhost'
 IDENTIFIED WITH mysql_native_password BY 'password';
 GRANT ALL PRIVILEGES ON notify_db.* TO 'notifyapp'@'localhost';
@@ -222,8 +236,8 @@ DELIMITER ;
 
 -- This function assigns listeners a loyaltyLevel determined by their MinutesListened.
 -- Their loyaltyLevel is returned as an output of this function.
-DELIMITER $$
 DROP FUNCTION IF EXISTS UserLoyaltyLevel;
+DELIMITER $$
 CREATE FUNCTION UserLoyaltyLevel(inUserID int)
 RETURNS varchar(50)
 DETERMINISTIC
@@ -249,7 +263,7 @@ BEGIN
 END $$
 DELIMITER ;
 
---Views
+-- Views
 DROP VIEW IF EXISTS FavoritedArtists;
 CREATE VIEW FavoritedArtists AS
 SELECT DISTINCT L.UserID, A.ArtistID

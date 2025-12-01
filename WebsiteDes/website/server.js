@@ -210,6 +210,121 @@ app.post("/api/login", (req, res) => {
   });
 });
 
+// ------ Create New Listener Account ------
+app.post("/api/create-listener",(req,res)=>{
+
+  const { username, firstname, lastname, subType, password } = req.body;
+
+  if(!username || !firstname || !lastname || !password)
+      return res.json({success:false,message:"Missing required fields"});
+
+  if(!/^[A-Za-z0-9]+$/.test(username))
+      return res.json({success:false,message:"Username must be alphanumeric only"});
+
+  // Insert new listener
+  const insertListener = `
+      INSERT INTO listener (FirstName, LastName, UserName, SubscriptionType)
+      VALUES (?, ?, ?, ?)
+  `;
+
+  db.query(insertListener,[firstname,lastname,username,subType],(err,result)=>{
+    if(err) return res.json({success:false,message:"Username already exists"});
+
+    const newUserId = result.insertId;
+
+    // Create login row using same UserID
+    const createLogin = `
+      INSERT INTO login (UserID, Password)
+      VALUES (?, ?)
+    `;
+
+    db.query(createLogin,[newUserId,password], err2=>{
+      if(err2) return res.json({success:false,message:"Error creating login row"});
+      res.json({success:true,userId:newUserId});
+    });
+  });
+});
+
+
+// ------ Listener Page ------
+// Update favorite song
+app.post("/api/favorite-song", (req, res) => {
+  const { userId, songId } = req.body;
+  if (!userId || !songId) return res.json({ success:false, msg:"Missing data" });
+
+  db.query(`UPDATE listener SET FavoriteSongID=? WHERE UserID=?`, [songId,userId], err=>{
+    if(err) return res.json({success:false});
+
+    // Return the song name back to the frontend to display
+    db.query(`SELECT SongName FROM song WHERE SongID=?`, [songId], (e,r)=>{
+      res.json({ success:true, songName: r[0]?.SongName || "Unknown Song" });
+    });
+  });
+});
+
+// Update favorite artist
+app.post("/api/favorite-artist", (req,res)=>{
+  const { userId, artistId } = req.body;
+  if (!userId || !artistId) return res.json({ success:false, msg:"Missing fields" });
+
+  db.query(`UPDATE listener SET FavoriteArtistID=? WHERE UserID=?`,[artistId,userId], err=>{
+    if(err) return res.json({success:false});
+
+    db.query(`SELECT StageName FROM artist WHERE ArtistID=?`,[artistId],(e,r)=>{
+      res.json({ success:true, artistName: r[0]?.StageName || "Unknown Artist" });
+    });
+  });
+});
+
+// Increment song listen count
+app.post("/api/play",(req,res)=>{
+  const songId = parseInt(req.body.songId); // <<— critical fix
+
+  db.query(`UPDATE song SET ListenCount = ListenCount + 1 WHERE SongID = ?`,[songId],err=>{
+    if(err) return res.json({success:false});
+
+    db.query(`SELECT SongName FROM song WHERE SongID = ?`,[songId],(e,r)=>{
+      if(!r || r.length===0)
+        return res.json({success:true, songName:"Not Found"});
+
+      res.json({success:true, songName:r[0].SongName});
+    });
+  });
+});
+
+
+// Get user loyalty level
+app.get("/api/loyalty-level", (req,res)=>{
+  const id=req.query.userId;
+  db.query(`SELECT UserLoyaltyLevel(?) AS Loyalty`,[id],
+  (err,result)=> err?res.json({success:false}):res.json({success:true,level:result[0].Loyalty})
+  );
+});
+
+// Get top 5 artists by listener count
+app.get("/api/top-artists",(req,res)=>{
+  const q=`SELECT A.ArtistID,A.StageName,F.ListenerCount
+           FROM artist A JOIN (
+             SELECT FavoriteArtistID AS ArtistID,COUNT(*) AS ListenerCount
+             FROM listener WHERE FavoriteArtistID IS NOT NULL
+             GROUP BY FavoriteArtistID ORDER BY ListenerCount DESC LIMIT 5
+           ) F ON A.ArtistID=F.ArtistID`;
+
+  db.query(q,(e,r)=> e?res.json({success:false}):res.json({success:true,data:r}));
+});
+
+// Get top 5 songs by listener count
+app.get("/api/top-songs",(req,res)=>{
+  const q=`SELECT S.SongID,S.SongName,F.ListenerCount
+          FROM song S JOIN(
+            SELECT FavoriteSongID AS SongID,COUNT(*)AS ListenerCount
+            FROM listener WHERE FavoriteSongID IS NOT NULL
+            GROUP BY FavoriteSongID ORDER BY ListenerCount DESC LIMIT 5
+          ) F ON S.SongID=F.SongID`;
+
+  db.query(q,(e,r)=> e?res.json({success:false}):res.json({success:true,data:r}));
+});
+
 // ------ Serve the login page (Existing code) ------
 app.get("/", (req, res) => {
   // Assuming index.html is in a 'public' folder

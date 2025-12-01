@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create New Listener Account</title>
+  <style>
+    body{font-family:Arial;margin:30px;}
+    label{display:block;margin-top:10px;}
+    input,select{padding:5px;margin-top:3px;width:200px;}
+    button{margin-top:15px;padding:8px 12px;}
+    #status{margin-top:10px;color:#b00;font-weight:bold;}
+  </style>
+</head>
+<body>
+
+  <h1>Create New Listener Account</h1>
+
+  <label>Username (Letters & Numbers Only)</label>
+  <input id="username" pattern="[A-Za-z0-9]+" title="Letters & numbers only" />
+
+  <label>First Name</label>
+  <input id="firstname"/>
+
+  <label>Last Name</label>
+  <input id="lastname"/>
+
+  <label>Subscription Type</label>
+  <select id="subType">
+      <option value="Lite">Lite</option>
+      <option value="Premium">Premium</option>
+  </select>
+
+  <label>Password</label>
+  <input id="password" type="password"/>
+
+  <button onclick="createListener()">Create Account</button>
+  <p id="status"></p>
+
+<script>
+async function createListener(){
+
+  const username = document.getElementById("username").value.trim();
+  const firstname = document.getElementById("firstname").value.trim();
+  const lastname = document.getElementById("lastname").value.trim();
+  const subType = document.getElementById("subType").value;
+  const password = document.getElementById("password").value.trim();
+  const status = document.getElementById("status");
+
+  if(!username.match(/^[A-Za-z0-9]+$/)){
+      status.textContent = "Invalid username — letters & numbers only.";
+      return;
+  }
+
+  if(!username || !firstname || !lastname || !password){
+      status.textContent = "All fields must be filled.";
+      return;
+  }
+
+  const res = await fetch("/api/create-listener",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username,firstname,lastname,subType,password})
+  });
+
+  const data = await res.json();
+
+  if(!data.success){
+      status.textContent = data.message;
+      return;
+  }
+
+  // store UserID for automatic login
+  localStorage.setItem("userId", data.userId);
+  window.location.href="listener.html";
+}
+</script>
+</body>
+</html>
